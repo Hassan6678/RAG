@@ -108,7 +108,11 @@ class RAGPipeline:
         )
 
         llm = ChatOllama(model=self.model, temperature=self.temperature, base_url=OLLAMA_BASE_URL)
-        memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+        memory = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True,
+            output_key="answer",
+        )
         retriever = vectorstore.as_retriever(search_kwargs={"k": self.top_k})
 
         return ConversationalRetrievalChain.from_llm(
@@ -116,6 +120,7 @@ class RAGPipeline:
             retriever=retriever,
             memory=memory,
             return_source_documents=True,
+            output_key="answer",
         )
 
     # ------------------------------------------------------------------
