@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+/dist/
+/build/
+
+# Environments
+.venv/
+venv/
+ENV/
+.env
+.env.*
+
+# Streamlit
+.streamlit/
+
+# Local cache
+.cache/
+
+# Logs
+*.log
+
+# OS / Editor
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+
+# Windows
+*.lnk
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
