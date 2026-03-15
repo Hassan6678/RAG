@@ -10,6 +10,7 @@ from typing import Any, Dict, Sequence
 
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
+from langchain.prompts import PromptTemplate
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
 from langchain_ollama import ChatOllama, OllamaEmbeddings
@@ -135,10 +136,62 @@ class RAGPipeline:
         memory = ConversationBufferMemory(
             memory_key="chat_history", return_messages=True, output_key="answer",
         )
+
+        # ── Condense prompt ──────────────────────────────────────────────────
+        # Only rephrase when the question is a genuine follow-up (contains
+        # pronouns / references like "it", "that", "they", "the previous").
+        # Independent questions must be returned EXACTLY as written.
+        condense_prompt = PromptTemplate.from_template(
+            """You are given a chat history and a new question from the user.
+                Your ONLY job is to decide whether the new question needs the history to be understood.
+
+                Rules (follow strictly):
+                1. If the new question is self-contained and does NOT reference anything from the history
+                (no pronouns like "it / that / this / they", no phrases like "the previous", "you mentioned",
+                "as above", "what about", "and what about") → return the question EXACTLY as-is, word for word.
+                2. If the question IS a follow-up that relies on the history → rewrite it as a single clear
+                standalone question that includes the necessary context from the history.
+                3. NEVER add, remove, or change the topic of a self-contained question.
+                4. Output ONLY the final question — no explanation, no preamble.
+
+                Chat History:
+                {chat_history}
+
+                New Question: {question}
+
+                Final question:"""
+        )
+
+        # ── QA prompt ────────────────────────────────────────────────────────
+        # Answers the *current* question using the retrieved context.
+        # History is available but the current question always takes priority.
+        qa_prompt = PromptTemplate.from_template(
+            """You are a helpful document assistant. Answer the user's CURRENT question
+                using the document context provided below.
+
+                Rules:
+                - Focus on the CURRENT question first and foremost.
+                - Use the chat history only if it directly helps clarify the current question.
+                - If the answer is not in the context, say "I don't find that information in the uploaded documents."
+                - Be concise and accurate.
+
+                Document context:
+                {context}
+
+                Chat history (for reference only):
+                {chat_history}
+
+                Current question: {question}
+
+                Answer:"""
+        )
+
         return ConversationalRetrievalChain.from_llm(
             llm=llm,
             retriever=vs.as_retriever(search_kwargs={"k": self.top_k}),
             memory=memory,
+            condense_question_prompt=condense_prompt,
+            combine_docs_chain_kwargs={"prompt": qa_prompt},
             return_source_documents=True,
             output_key="answer",
         )
