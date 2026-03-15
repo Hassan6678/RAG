@@ -4,19 +4,22 @@ __pycache__/
 *.egg-info/
 /dist/
 /build/
-
-# Environments
 .venv/
 venv/
 ENV/
+
+# Environment
 .env
 .env.*
+!.env.example
 
-# Streamlit
-.streamlit/
-
-# Local cache
+# Cache
 .cache/
+
+# Node
+node_modules/
+.next/
+frontend/.env.local
 
 # Logs
 *.log
@@ -26,11 +29,12 @@ ENV/
 .idea/
 .vscode/
 Thumbs.db
-
-# Windows
 *.lnk
 
 # Archives
 *.zip
 *.tar.gz
 *.rar
+
+# Streamlit (legacy)
+.streamlit/

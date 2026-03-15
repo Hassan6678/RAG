@@ -8,9 +8,6 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
-    # ── NVIDIA GPU (RTX 3050 6 GB) ───────────────────────────────────────────
-    # Requires: NVIDIA Container Toolkit installed on the host.
-    # Windows: enable in Docker Desktop → Settings → Resources → GPU
     deploy:
       resources:
         reservations:
@@ -19,17 +16,33 @@ services:
               count: all
               capabilities: [gpu]
 
-  app:
-    build: .
-    container_name: docmind-app
+  backend:
+    build: ./backend
+    container_name: docmind-backend
     ports:
-      - "8501:8501"
+      - "8000:8000"
     volumes:
       - ./.cache:/app/.cache
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
+      - CACHE_DIR=/app/.cache
+      - FRONTEND_URL=http://localhost:3000
     depends_on:
       - ollama
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
+    container_name: docmind-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
     restart: unless-stopped
 
 volumes:
