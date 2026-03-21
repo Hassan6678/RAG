@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import uuid
 from hashlib import sha256
 from pathlib import Path
@@ -163,27 +164,25 @@ class RAGPipeline:
         )
 
         # ── QA prompt ────────────────────────────────────────────────────────
-        # Answers the *current* question using the retrieved context.
-        # History is available but the current question always takes priority.
         qa_prompt = PromptTemplate.from_template(
-            """You are a helpful document assistant. Answer the user's CURRENT question
-                using the document context provided below.
+            """You are a document Q&A assistant. Answer ONLY what was asked using ONLY the document excerpts below.
 
-                Rules:
-                - Focus on the CURRENT question first and foremost.
-                - Use the chat history only if it directly helps clarify the current question.
-                - If the answer is not in the context, say "I don't find that information in the uploaded documents."
-                - Be concise and accurate.
+STRICT RULES:
+1. Answer ONLY the specific question asked. Do NOT mention related topics that appear in the excerpts but were not asked about.
+2. Use ONLY information from the "Document excerpts" section. Do NOT use your own training knowledge to fill gaps.
+3. If the exact answer is not in the excerpts, respond: "The uploaded documents do not contain information about [topic]."
+4. Do NOT say "You mentioned X" — refer only to what is written in the chat history, not what you infer.
+5. Be concise and direct.
 
-                Document context:
-                {context}
+Document excerpts:
+{context}
 
-                Chat history (for reference only):
-                {chat_history}
+Chat history:
+{chat_history}
 
-                Current question: {question}
+Question: {question}
 
-                Answer:"""
+Answer:"""
         )
 
         return ConversationalRetrievalChain.from_llm(
@@ -252,7 +251,9 @@ def chat(session_id: str, question: str) -> Dict[str, Any]:
     seen: set[str] = set()
     relevance_scores = [94, 87, 81, 75, 70]
     for i, doc in enumerate(raw_sources[:5]):
-        name = os.path.basename(doc.metadata.get("source", "Unknown"))
+        raw = os.path.basename(doc.metadata.get("source", "Unknown"))
+        # Strip the UUID prefix added during upload: 32hex_filename.pdf → filename.pdf
+        name = re.sub(r'^[0-9a-f]{32}_', '', raw)
         page = doc.metadata.get("page")
         page_label = f"Page {page + 1}" if isinstance(page, int) else ""
         key = f"{name}_{page_label}"
